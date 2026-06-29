@@ -7,33 +7,44 @@ pipeline {
 
     environment {
         PATH = "${tool 'MAVEN_HOME'}/bin:${env.PATH}"
+        MAVEN_OPTS = "-Dmaven.repo.local=.m2/repository"
     }
 
     parameters {
-        booleanParam(name: 'ALLURE', defaultValue: false)
-        booleanParam(name: 'LANCER_TOUS_LES_TESTS', defaultValue: false)
-        choice(name: 'TAG', choices: ['@ecommerce', '@brand1'])
+        booleanParam(name: 'ALLURE', defaultValue: false, description: 'Génération du rapport Allure')
+        booleanParam(name: 'LANCER_TOUS_LES_TESTS', defaultValue: false, description: 'Lancer tous les tests')
+        choice(name: 'TAG', choices: ['@ecommerce', '@brand1'], description: 'Choisir le tag')
     }
 
     stages {
 
-        stage('Nettoyer Allure Results') {
+        stage('Préparation workspace') {
             steps {
                 sh '''
+                    echo "Nettoyage workspace + cache Maven local..."
                     rm -rf allure-results
                     mkdir -p allure-results
+                    rm -rf .m2/repository/org/graalvm || true
                 '''
             }
         }
 
-        stage('Lancer les tests Karate') {
+        stage('Lancer tests Karate') {
             steps {
                 script {
+
+                    def mvnCmd = ""
+
                     if (params.LANCER_TOUS_LES_TESTS) {
-                        sh 'mvn test'
+                        echo "Lancement de tous les tests"
+                        mvnCmd = "mvn clean test -U"
                     } else {
-                        echo "Lancement du tag : ${params.TAG}"
-                        sh "mvn test -Dkarate.options=--tags=${params.TAG}"
+                        echo "Lancement tag : ${params.TAG}"
+                        mvnCmd = "mvn clean test -U -Dkarate.options=--tags=${params.TAG}"
+                    }
+
+                    retry(2) {
+                        sh mvnCmd
                     }
                 }
             }
@@ -41,6 +52,7 @@ pipeline {
     }
 
     post {
+
         always {
             script {
                 if (params.ALLURE) {
