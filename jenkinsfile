@@ -9,7 +9,7 @@ pipeline {
     parameters {
         booleanParam(name: 'ALLURE', defaultValue: false, description: 'Génération du rapport Allure')
         booleanParam(name: 'LANCER_TOUS_LES_TESTS', defaultValue: false, description: 'Cocher pour lancer tous les tests')
-        choice(name: 'TAG', choices: ['@ecommerce','@brand1'], description: 'Choisir le tag à lancer')
+        choice(name: 'TAG', choices: ['@ecommerce', '@brand1'], description: 'Choisir le tag à lancer')
     }
 
     stages {
@@ -35,9 +35,6 @@ pipeline {
                         echo "Lancement du tag : ${params.TAG}"
                         sh "mvn test -Dkarate.options='--tags ${params.TAG}'"
                     }
-                    if (params.ALLURE) {
-                        stash name: 'allure-results', includes: 'allure-results/*'
-                    }
                 }
             }
         }
@@ -47,11 +44,21 @@ pipeline {
         always {
             script {
                 if (params.ALLURE) {
-                    unstash 'allure-results'
-                    archiveArtifacts 'allure-results/*'
-                    allure includeProperties: false,
-                           jdk: '',
-                           results: [[path: 'allure-results/']]
+
+                    sh '''
+                        if [ -d allure-results ]; then
+                            chmod -R 777 allure-results || true
+                            find allure-results -type f -exec touch {} \\;
+                        fi
+                    '''
+
+                    archiveArtifacts artifacts: 'allure-results/**', fingerprint: true
+
+                    allure(
+                        includeProperties: false,
+                        jdk: '',
+                        results: [[path: 'allure-results']]
+                    )
                 }
             }
         }
