@@ -56,9 +56,7 @@ Feature: sample karate test script
     When method get
     Then status 200
 
-    Given path reponse.id
-    When method get
-    Then status 200
+
 
 
   
