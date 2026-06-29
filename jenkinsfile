@@ -1,0 +1,41 @@
+pipeline {
+    agent {
+        docker {
+            image 'm
+            aven:3.9-eclipse-temurin-17'
+            args '-u=root'
+        }
+    }
+
+    parameters {
+        booleanParam(name: 'LANCER_TOUS_LES_TESTS', defaultValue: false, description: 'Cocher pour lancer tous les tests')
+        choice(name: 'TAG', choices: ['@ecommerce','@brand1'], description: 'Choisir le tag à lancer')
+    }
+
+    stages {
+
+        stage('Lancer les tests Karate') {
+            steps {
+                script {
+                    if (params.LANCER_TOUS_LES_TESTS) {
+                        echo "Lancement de TOUS les tests..."
+                        sh 'mvn test'
+                    } else {
+                        echo "Lancement du tag : ${params.TAG}"
+                        sh "mvn test -Dkarate.options='--tags ${params.TAG}'"
+                    }
+                }
+            }
+        }
+
+        stage('Rapport') {
+            steps {
+                publishHTML(target: [
+                    reportDir: 'target/karate-reports',
+                    reportFiles: 'karate-summary.html',
+                    reportName: 'Karate Report'
+                ])
+            }
+        }
+    }
+}
