@@ -7,13 +7,14 @@ pipeline {
 
     environment {
         PATH = "${tool 'MAVEN_HOME'}/bin:${env.PATH}"
-        MAVEN_OPTS = "-Dmaven.repo.local=.m2/repository"
+        MAVEN_OPTS = "-Dmaven.repo.local=$HOME/.m2/repository"
     }
 
     parameters {
         booleanParam(name: 'ALLURE', defaultValue: false, description: 'Génération du rapport Allure')
         booleanParam(name: 'LANCER_TOUS_LES_TESTS', defaultValue: false, description: 'Lancer tous les tests')
         choice(name: 'TAG', choices: ['@ecommerce', '@brand1'], description: 'Choisir le tag')
+        choice(name: 'ENV', choices: ['dev', 'e2e'], description: 'Environnement')
     }
 
     stages {
@@ -21,10 +22,9 @@ pipeline {
         stage('Préparation workspace') {
             steps {
                 sh '''
-                    echo "Nettoyage workspace + cache Maven local..."
-                    rm -rf allure-results
+                    echo "Clean léger workspace..."
+                    rm -rf allure-results || true
                     mkdir -p allure-results
-                    rm -rf .m2/repository/org/graalvm || true
                 '''
             }
         }
@@ -33,14 +33,14 @@ pipeline {
             steps {
                 script {
 
-                    def mvnCmd = ""
+                    def mvnCmd
 
                     if (params.LANCER_TOUS_LES_TESTS) {
                         echo "Lancement de tous les tests"
-                        mvnCmd = "mvn clean test -U"
+                        mvnCmd = "mvn test -U -Dkarate.env=${params.ENV}"
                     } else {
                         echo "Lancement tag : ${params.TAG}"
-                        mvnCmd = "mvn clean test -U -Dkarate.options=--tags=${params.TAG}"
+                        mvnCmd = "mvn test -U -Dkarate.env=${params.ENV} -Dkarate.options=--tags=${params.TAG}"
                     }
 
                     retry(2) {
